@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Real-Time Tracking (Leaflet + Firebase)</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+  <style>
+    #map { height: 60vh; }
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+    th, td { border: 1px solid #ddd; padding: 8px; text-align: center; }
+    th { background-color: #007BFF; color: white; }
+  </style>
+</head>
+<body>
+  <h2 style="text-align:center;">Real-Time Vehicle Tracking - Mauritius (Free Map)</h2>
+  <div id="map"></div>
+  <table>
+    <thead>
+      <tr>
+        <th>Time</th>
+        <th>Latitude</th>
+        <th>Longitude</th>
+      </tr>
+    </thead>
+    <tbody id="locationTable"></tbody>
+  </table>
+
+  <!-- Leaflet JS -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <!-- Firebase -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+
+  <script>
+    // Your Firebase config
+    const firebaseConfig = {
+      apiKey: "AIzaSyAG_Ww_g7EqHf-rV43qVkvTTrgX4WAiGLs",
+      authDomain: "real-time-tracking-syste-d9c34.firebaseapp.com",
+      databaseURL: "https://real-time-tracking-syste-d9c34-default-rtdb.asia-southeast1.firebasedatabase.app",
+      projectId: "real-time-tracking-syste-d9c34",
+      storageBucket: "real-time-tracking-syste-d9c34.firebasestorage.app",
+      messagingSenderId: "518465614489",
+      appId: "1:518465614489:web:7b7e5bebe90a6391c43e08",
+      measurementId: "G-LS1QMNQBK5"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    let map = L.map('map').setView([-20.348404, 57.552152], 10); // Mauritius center
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; OpenStreetMap contributors'
+    }).addTo(map);
+
+    let marker = L.marker([-20.348404, 57.552152]).addTo(map);
+    let history = [];
+
+    db.ref("vehicle").on("value", snapshot => {
+      const data = snapshot.val();
+      if (data && data.lat && data.lng) {
+        const lat = data.lat;
+        const lng = data.lng;
+        const now = new Date().toLocaleString();
+
+        marker.setLatLng([lat, lng]);
+        map.setView([lat, lng], 12);
+
+        history.unshift({ time: now, lat: lat, lng: lng });
+        updateTable();
+      }
+    });
+
+    function updateTable() {
+      const tbody = document.getElementById("locationTable");
+      tbody.innerHTML = "";
+      history.slice(0, 10).forEach(item => {
+        const row = `<tr>
+          <td>${item.time}</td>
+          <td>${item.lat.toFixed(6)}</td>
+          <td>${item.lng.toFixed(6)}</td>
+        </tr>`;
+        tbody.innerHTML += row;
+      });
+    }
+  </script>
+</body>
+</html>
