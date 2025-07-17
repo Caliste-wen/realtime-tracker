@@ -14,7 +14,7 @@
   </style>
 </head>
 <body>
-  <h2 style="text-align:center;">Real-Time Vehicle Tracking - Mauritius (Free Map)</h2>
+  <h2 style="text-align:center;">Real-Time Vehicle Tracking - Mauritius</h2>
   <div id="map"></div>
   <table>
     <thead>
@@ -34,13 +34,13 @@
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 
   <script>
-    // Your Firebase config
+    // Firebase config
     const firebaseConfig = {
       apiKey: "AIzaSyAG_Ww_g7EqHf-rV43qVkvTTrgX4WAiGLs",
       authDomain: "real-time-tracking-syste-d9c34.firebaseapp.com",
       databaseURL: "https://real-time-tracking-syste-d9c34-default-rtdb.asia-southeast1.firebasedatabase.app",
       projectId: "real-time-tracking-syste-d9c34",
-      storageBucket: "real-time-tracking-syste-d9c34.firebasestorage.app",
+      storageBucket: "real-time-tracking-syste-d9c34.appspot.com",
       messagingSenderId: "518465614489",
       appId: "1:518465614489:web:7b7e5bebe90a6391c43e08",
       measurementId: "G-LS1QMNQBK5"
@@ -48,7 +48,7 @@
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
-    let map = L.map('map').setView([-20.348404, 57.552152], 10); // Mauritius center
+    let map = L.map('map').setView([-20.348404, 57.552152], 10);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       attribution: '&copy; OpenStreetMap contributors'
     }).addTo(map);
@@ -56,18 +56,19 @@
     let marker = L.marker([-20.348404, 57.552152]).addTo(map);
     let history = [];
 
-    db.ref("vehicle").on("value", snapshot => {
-      const data = snapshot.val();
-      if (data && data.lat && data.lng) {
-        const lat = data.lat;
-        const lng = data.lng;
-        const now = new Date().toLocaleString();
+    // Read full history ordered by time
+    db.ref("history").orderByChild("timestamp").limitToLast(50).on("value", snapshot => {
+      history = [];
+      snapshot.forEach(child => {
+        const item = child.val();
+        history.push(item);
+      });
+      history.sort((a,b) => b.timestamp - a.timestamp); // newest first
+      updateTable();
 
-        marker.setLatLng([lat, lng]);
-        map.setView([lat, lng], 12);
-
-        history.unshift({ time: now, lat: lat, lng: lng });
-        updateTable();
+      if(history.length > 0) {
+        marker.setLatLng([history[0].lat, history[0].lng]);
+        map.setView([history[0].lat, history[0].lng], 12);
       }
     });
 
@@ -75,8 +76,9 @@
       const tbody = document.getElementById("locationTable");
       tbody.innerHTML = "";
       history.slice(0, 10).forEach(item => {
+        const date = new Date(item.timestamp).toLocaleString();
         const row = `<tr>
-          <td>${item.time}</td>
+          <td>${date}</td>
           <td>${item.lat.toFixed(6)}</td>
           <td>${item.lng.toFixed(6)}</td>
         </tr>`;
