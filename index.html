@@ -14,7 +14,7 @@
   </style>
 </head>
 <body>
-  <h2 style="text-align:center;">Real-Time Vehicle Tracking - Mauritius</h2>
+  <h2 style="text-align:center;">Real-Time Vehicle Tracking - Mauritius (History View)</h2>
   <div id="map"></div>
   <table>
     <thead>
@@ -34,7 +34,6 @@
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 
   <script>
-    // Firebase config
     const firebaseConfig = {
       apiKey: "AIzaSyAG_Ww_g7EqHf-rV43qVkvTTrgX4WAiGLs",
       authDomain: "real-time-tracking-syste-d9c34.firebaseapp.com",
@@ -53,32 +52,45 @@
       attribution: '&copy; OpenStreetMap contributors'
     }).addTo(map);
 
-    let marker = L.marker([-20.348404, 57.552152]).addTo(map);
+    let polyline = L.polyline([], {color: 'blue'}).addTo(map);
+    let markers = [];
     let history = [];
 
-    // Read full history ordered by time
-    db.ref("history").orderByChild("timestamp").limitToLast(50).on("value", snapshot => {
+    db.ref("history").on("value", snapshot => {
+      const data = snapshot.val();
       history = [];
-      snapshot.forEach(child => {
-        const item = child.val();
-        history.push(item);
-      });
-      history.sort((a,b) => b.timestamp - a.timestamp); // newest first
-      updateTable();
+      polyline.setLatLngs([]);
+      markers.forEach(m => map.removeLayer(m));
+      markers = [];
 
-      if(history.length > 0) {
-        marker.setLatLng([history[0].lat, history[0].lng]);
-        map.setView([history[0].lat, history[0].lng], 12);
+      if (data) {
+        // Convert data to array and sort by timestamp
+        let points = Object.values(data).sort((a,b)=>a.timestamp - b.timestamp);
+        points.forEach(item => {
+          if (item.lat && item.lng) {
+            let latlng = [item.lat, item.lng];
+            polyline.addLatLng(latlng);
+            let marker = L.marker(latlng).addTo(map);
+            let time = new Date(item.timestamp).toLocaleString();
+            marker.bindPopup(`Time: ${time}`);
+            markers.push(marker);
+            history.push({time: time, lat: item.lat, lng: item.lng});
+          }
+        });
+        // Center map to last point
+        if (points.length > 0) {
+          map.setView([points[points.length - 1].lat, points[points.length - 1].lng], 13);
+        }
+        updateTable();
       }
     });
 
     function updateTable() {
       const tbody = document.getElementById("locationTable");
       tbody.innerHTML = "";
-      history.slice(0, 10).forEach(item => {
-        const date = new Date(item.timestamp).toLocaleString();
+      history.slice().reverse().forEach(item => {
         const row = `<tr>
-          <td>${date}</td>
+          <td>${item.time}</td>
           <td>${item.lat.toFixed(6)}</td>
           <td>${item.lng.toFixed(6)}</td>
         </tr>`;
