@@ -32,7 +32,7 @@
 </head>
 <body>
 
-<header>🚗 Real-Time Vehicle Tracking</header>
+<header>Real-Time Vehicle Tracking</header>
 <div id="map"></div>
 <div id="time">Last Update: --</div>
 
@@ -44,7 +44,7 @@
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 
 <script>
-  // Firebase configuration
+  // Firebase configuration (Updated)
   const firebaseConfig = {
     apiKey: "AIzaSyAOJ-wV5ZAcg_h6aA08ltos9jrejHwKyCA",
     authDomain: "real-time-vehicle-tracke-2d3a3.firebaseapp.com",
@@ -57,7 +57,7 @@
   };
 
   // Initialize Firebase
-  const app = firebase.initializeApp(firebaseConfig);
+  firebase.initializeApp(firebaseConfig);
   const database = firebase.database();
 
   // Initialize Map
@@ -72,7 +72,7 @@
   let vehicleMarker = L.marker([-20.159806, 57.502443]).addTo(map)
     .bindPopup("Vehicle Location");
 
-  // Listen for location updates in Firebase
+  // Listen for location updates from Firebase
   database.ref('vehicle/location').on('value', (snapshot) => {
     const data = snapshot.val();
     if (data) {
@@ -80,7 +80,7 @@
       const lng = parseFloat(data.longitude);
       const timestamp = data.timestamp || Date.now();
 
-      // Update map
+      // Update map marker position
       vehicleMarker.setLatLng([lat, lng]);
       map.setView([lat, lng], 14);
 
