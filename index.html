@@ -1,96 +1,112 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <meta charset="UTF-8">
-  <title>Real-Time Vehicle Tracking</title>
+  <meta charset="utf-8" />
+  <title>Real-Time Vehicle Tracking - Mauritius</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <!-- Leaflet CSS -->
-  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
   <style>
-    body {
-      margin: 0;
-      font-family: Arial, sans-serif;
-      text-align: center;
-    }
-    #map {
-      height: 85vh;
-      width: 100%;
-    }
-    header {
-      background: #2c3e50;
-      color: white;
-      padding: 10px 0;
-      font-size: 20px;
-    }
-    #time {
-      background: #f4f4f4;
-      padding: 10px;
-      font-size: 16px;
-      border-top: 1px solid #ccc;
-    }
+    body { font-family: Arial, sans-serif; margin:0; padding:0; }
+    #map { height: 60vh; }
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 14px; }
+    th, td { border: 1px solid #ddd; padding: 8px; text-align: center; }
+    th { background-color: #007BFF; color: white; }
   </style>
 </head>
 <body>
+  <h2 style="text-align:center; margin-top:10px;">Real-Time Vehicle Tracking - Mauritius</h2>
+  <div id="map"></div>
+  <table>
+    <thead>
+      <tr>
+        <th>Time</th>
+        <th>Latitude</th>
+        <th>Longitude</th>
+      </tr>
+    </thead>
+    <tbody id="locationTable"></tbody>
+  </table>
 
-<header>Real-Time Vehicle Tracking</header>
-<div id="map"></div>
-<div id="time">Last Update: --</div>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script type="module">
+    // Import the functions you need from the SDKs you need
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
+    import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-database.js";
 
-<!-- Firebase SDK -->
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js"></script>
+    // Your web app's Firebase configuration
+    const firebaseConfig = {
+      apiKey: "AIzaSyAOJ-wV5ZAcg_h6aA08ltos9jrejHwKyCA",
+      authDomain: "real-time-vehicle-tracke-2d3a3.firebaseapp.com",
+      databaseURL: "https://real-time-vehicle-tracke-2d3a3-default-rtdb.asia-southeast1.firebasedatabase.app",
+      projectId: "real-time-vehicle-tracke-2d3a3",
+      storageBucket: "real-time-vehicle-tracke-2d3a3.firebasestorage.app",
+      messagingSenderId: "877798038753",
+      appId: "1:877798038753:web:cf277d4223782b71862ba0",
+      measurementId: "G-XNGEFE82RV"
+    };
 
-<!-- Leaflet JS -->
-<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    // Initialize Firebase
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
 
-<script>
-  // Firebase configuration (Updated)
-  const firebaseConfig = {
-    apiKey: "AIzaSyAOJ-wV5ZAcg_h6aA08ltos9jrejHwKyCA",
-    authDomain: "real-time-vehicle-tracke-2d3a3.firebaseapp.com",
-    databaseURL: "https://real-time-vehicle-tracke-2d3a3-default-rtdb.asia-southeast1.firebasedatabase.app",
-    projectId: "real-time-vehicle-tracke-2d3a3",
-    storageBucket: "real-time-vehicle-tracke-2d3a3.firebasestorage.app",
-    messagingSenderId: "877798038753",
-    appId: "1:877798038753:web:cf277d4223782b71862ba0",
-    measurementId: "G-XNGEFE82RV"
-  };
+    // Initialize map centered on Mauritius
+    let map = L.map('map').setView([-20.348404, 57.552152], 11);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; OpenStreetMap contributors'
+    }).addTo(map);
 
-  // Initialize Firebase
-  firebase.initializeApp(firebaseConfig);
-  const database = firebase.database();
+    // Store all historical points
+    let markers = [];
+    let history = [];
 
-  // Initialize Map
-  const map = L.map('map').setView([-20.159806, 57.502443], 12); // Default starting point
+    // Listen to entire 'history' node in Firebase
+    const historyRef = ref(db, 'history');
+    onValue(historyRef, (snapshot) => {
+      const data = snapshot.val();
+      if (data) {
+        // Clear old markers and table
+        markers.forEach(marker => map.removeLayer(marker));
+        markers = [];
+        history = [];
 
-  // Load Map Tiles
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    attribution: '&copy; OpenStreetMap contributors'
-  }).addTo(map);
+        // Loop through all saved points
+        Object.entries(data).forEach(([key, point]) => {
+          const lat = point.lat;
+          const lng = point.lng;
+          const time = point.time;
 
-  // Vehicle Marker
-  let vehicleMarker = L.marker([-20.159806, 57.502443]).addTo(map)
-    .bindPopup("Vehicle Location");
+          // Add to history
+          history.push({ time, lat, lng });
 
-  // Listen for location updates from Firebase
-  database.ref('vehicle/location').on('value', (snapshot) => {
-    const data = snapshot.val();
-    if (data) {
-      const lat = parseFloat(data.latitude);
-      const lng = parseFloat(data.longitude);
-      const timestamp = data.timestamp || Date.now();
+          // Add marker
+          const marker = L.marker([lat, lng]).addTo(map)
+            .bindPopup(`<b>${time}</b><br>Lat: ${lat.toFixed(6)}<br>Lng: ${lng.toFixed(6)}`);
+          markers.push(marker);
+        });
 
-      // Update map marker position
-      vehicleMarker.setLatLng([lat, lng]);
-      map.setView([lat, lng], 14);
+        // Auto center map to last point
+        if (history.length > 0) {
+          const last = history[history.length - 1];
+          map.setView([last.lat, last.lng], 13);
+        }
 
-      // Format and display time
-      const date = new Date(timestamp);
-      document.getElementById('time').textContent =
-        "Last Update: " + date.toLocaleString();
+        updateTable();
+      }
+    });
+
+    function updateTable() {
+      const tbody = document.getElementById("locationTable");
+      tbody.innerHTML = "";
+      // Show latest first
+      history.slice().reverse().forEach(item => {
+        const row = `<tr>
+          <td>${item.time}</td>
+          <td>${item.lat.toFixed(6)}</td>
+          <td>${item.lng.toFixed(6)}</td>
+        </tr>`;
+        tbody.innerHTML += row;
+      });
     }
-  });
-</script>
-
+  </script>
 </body>
 </html>
